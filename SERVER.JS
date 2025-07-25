@@ -539,3 +539,4 @@ server.listen(PORT, () => {
     console.log(`🚀 Othello server running on port ${PORT}`);
     console.log(`🌐 Open http://localhost:${PORT} to play`);
 });
+module.exports = { app, server, io };
