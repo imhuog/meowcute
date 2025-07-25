@@ -483,12 +483,10 @@
         <p class="subtitle">Multiplayer Othello Game</p>
     </div>
 
-    <!-- Connection Status -->
     <div class="connection-status" id="connection-status">
         🔄 Đang kết nối...
     </div>
 
-    <!-- Main Menu Screen -->
     <div class="screen active" id="main-menu">
         <div class="menu-card">
             <h2>📱 Chào mừng đến với Cờ Lật Online!</h2>
@@ -514,7 +512,6 @@
         </div>
     </div>
 
-    <!-- Join Room Screen -->
     <div class="screen" id="join-room-screen">
         <div class="menu-card">
             <h2>🚪 Vào Phòng</h2>
@@ -535,7 +532,6 @@
         </div>
     </div>
 
-    <!-- Waiting Room Screen -->
     <div class="screen" id="waiting-room">
         <div class="menu-card">
             <h2>⏳ Đang chờ đối thủ...</h2>
@@ -562,7 +558,6 @@
         </div>
     </div>
 
-    <!-- Game Screen -->
     <div class="screen" id="game-screen">
         <div class="game-container">
             <div class="players-section">
@@ -613,7 +608,6 @@
         </div>
     </div>
 
-    <!-- Modal luật chơi -->
     <div class="modal" id="rules-modal">
         <div class="modal-content">
             <h2>📖 Luật Chơi Cờ Lật Online</h2>
@@ -633,7 +627,6 @@
         </div>
     </div>
 
-    <!-- Màn hình kết thúc -->
     <div class="game-over" id="game-over">
         <div class="game-over-content">
             <div class="winner-announcement" id="winner-text"></div>
@@ -643,12 +636,10 @@
         </div>
     </div>
 
-    <!-- Notification -->
     <div class="notification" id="notification">
         <div id="notification-text"></div>
     </div>
 
-    <!-- Socket.IO -->
     <script src="https://meow-backend-je55.onrender.com/socket.io/socket.io.js"></script>
 
     
@@ -690,7 +681,10 @@
                 this.socket.on('disconnect', () => {
                     console.log('Disconnected from server');
                     this.updateConnectionStatus('disconnected');
-                    this.attemptReconnect();
+                    if (this.isOnlineMode) {
+                        this.showNotification('🔴 Mất kết nối! Đang thử kết nối lại...');
+                        this.attemptReconnect();
+                    }
                 });
 
                 this.socket.on('connect_error', () => {
@@ -749,6 +743,7 @@
             }
 
             attemptReconnect() {
+                if (!this.isOnlineMode) return;
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
                     this.updateConnectionStatus('connecting');
@@ -758,6 +753,8 @@
                             this.socket.connect();
                         }
                     }, 2000 * this.reconnectAttempts);
+                } else {
+                     this.showNotification('Không thể kết nối lại với server.');
                 }
             }
 
@@ -785,17 +782,14 @@
                         const player = e.target.closest('.emoji-selector').dataset.player;
                         const emoji = e.target.dataset.emoji;
                         
-                        // Update UI
                         e.target.closest('.emoji-selector').querySelectorAll('.emoji-option').forEach(opt => {
                             opt.classList.remove('selected');
                         });
                         e.target.classList.add('selected');
                         
                         if (this.isOnlineMode) {
-                            // Send to server
                             this.socket.emit('updateEmoji', { emoji });
                         } else {
-                            // Offline mode
                             if (player === '1') {
                                 this.player1Emoji = emoji;
                             } else {
@@ -808,11 +802,11 @@
 
                 // Enter key handlers
                 document.getElementById('player-name').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') createRoom();
+                    if (e.key === 'Enter') this.createRoom();
                 });
 
                 document.getElementById('room-id-input').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') joinRoom();
+                    if (e.key === 'Enter') this.joinRoom();
                 });
             }
 
@@ -834,11 +828,112 @@
                 }, 3000);
             }
 
+            // ================================
+            // UI Interaction Methods
+            // ================================
+
+            createRoom() {
+                this.playerName = document.getElementById('player-name').value.trim();
+                if (!this.playerName) {
+                    this.showNotification('Vui lòng nhập tên của bạn!');
+                    return;
+                }
+                this.isOnlineMode = true;
+                this.socket.emit('createRoom', { playerName: this.playerName });
+            }
+
+            showJoinRoom() {
+                this.playerName = document.getElementById('player-name').value.trim();
+                if (!this.playerName) {
+                    this.showNotification('Vui lòng nhập tên của bạn!');
+                    return;
+                }
+                this.showScreen('join-room-screen');
+            }
+            
+            joinRoom() {
+                const roomId = document.getElementById('room-id-input').value.trim();
+                if (!/^\d{6}$/.test(roomId)) {
+                    this.showNotification('Mã phòng phải là 6 chữ số!');
+                    return;
+                }
+                this.isOnlineMode = true;
+                this.socket.emit('joinRoom', { roomId, playerName: this.playerName });
+            }
+            
+            backToMenu() {
+                this.showScreen('main-menu');
+            }
+
+            leaveRoom() {
+                if (this.isOnlineMode && this.socket) {
+                    this.socket.disconnect(); // This will trigger the disconnect event on server
+                }
+                // Re-initialize a fresh connection for future games
+                this.initializeConnection(); 
+                this.isOnlineMode = false;
+                this.roomId = null;
+                this.gameState = null;
+                this.showScreen('main-menu');
+                this.hideGameOver();
+            }
+            
+            leaveGame() {
+                this.leaveRoom();
+            }
+
+            resetGame() {
+                if (this.isOnlineMode) {
+                    this.socket.emit('resetGame');
+                } else {
+                    this.initializeOfflineBoard();
+                    this.updateOfflineDisplay();
+                    this.hideGameOver();
+                }
+            }
+            
+            playOffline() {
+                this.playerName = document.getElementById('player-name').value.trim();
+                if (!this.playerName) {
+                    this.showNotification('Vui lòng nhập tên của bạn!');
+                    return;
+                }
+
+                this.isOnlineMode = false;
+                this.initializeOfflineBoard();
+                
+                document.getElementById('player1-name').textContent = this.playerName;
+                document.getElementById('player2-name').textContent = 'Người chơi 2';
+
+                this.updateOfflineDisplay();
+                this.showScreen('game-screen');
+                this.hideGameOver();
+            }
+
+            copyRoomLink() {
+                const link = document.getElementById('share-link').textContent;
+                navigator.clipboard.writeText(link).then(() => {
+                    this.showNotification('Đã copy link vào clipboard!');
+                    const copyBtn = document.getElementById('copy-btn');
+                    copyBtn.textContent = 'Đã Copy!';
+                    setTimeout(() => {
+                         copyBtn.textContent = '📋 Copy Link';
+                    }, 2000);
+                }).catch(err => {
+                    this.showNotification('Lỗi khi copy link!');
+                    console.error('Failed to copy: ', err);
+                });
+            }
+
+            // ================================
+            // Online Game Methods
+            // ================================
+
             showWaitingRoom() {
                 this.showScreen('waiting-room');
                 document.getElementById('display-room-id').textContent = this.roomId;
-                document.getElementById('share-link').textContent = 
-                    `${window.location.origin}?room=${this.roomId}`;
+                const shareLink = `${window.location.origin}${window.location.pathname}?room=${this.roomId}`;
+                document.getElementById('share-link').textContent = shareLink;
                 this.updateWaitingRoom();
             }
 
@@ -848,7 +943,7 @@
                 const playerList = document.getElementById('player-list');
                 playerList.innerHTML = '';
                 
-                this.gameState.players.forEach((player, index) => {
+                this.gameState.players.forEach((player) => {
                     const playerDiv = document.createElement('div');
                     playerDiv.style.margin = '10px 0';
                     playerDiv.style.padding = '10px';
@@ -879,12 +974,10 @@
                     const scoreId = `player${index + 1}-score`;
                     
                     document.getElementById(nameId).textContent = player.name;
-                    document.getElementById(scoreId).textContent = 
-                        this.gameState.scores[`player${index + 1}Score`];
+                    document.getElementById(scoreId).textContent = this.gameState.scores[`player${index + 1}Score`];
                     
                     const card = document.getElementById(cardId);
-                    card.classList.toggle('active', 
-                        this.gameState.currentPlayer === player.playerNumber);
+                    card.classList.toggle('active', this.gameState.currentPlayer === player.playerNumber && !this.gameState.gameOver);
                     card.classList.toggle('offline', !player.connected);
                 });
 
@@ -895,14 +988,10 @@
                 
                 if (this.gameState.gameOver) {
                     this.showGameOver();
+                    document.getElementById('turn-indicator').textContent = '🏁 Game Over!';
                 } else if (currentPlayerData) {
-                    const isMyTurn = currentPlayerData.id === this.myPlayerId;
-                    this.isMyTurn = isMyTurn;
-                    
-                    const turnText = isMyTurn ? 
-                        '🎯 Lượt của bạn!' : 
-                        `⏳ Lượt của ${currentPlayerData.name}`;
-                    
+                    this.isMyTurn = currentPlayerData.id === this.myPlayerId;
+                    const turnText = this.isMyTurn ? '🎯 Lượt của bạn!' : `⏳ Lượt của ${currentPlayerData.name}`;
                     document.getElementById('turn-indicator').textContent = turnText;
                 }
 
@@ -915,6 +1004,8 @@
                         if (selectedOpt) selectedOpt.classList.add('selected');
                     }
                 });
+
+                this.renderBoard();
             }
 
             renderBoard() {
@@ -925,6 +1016,9 @@
                 const validMoves = this.isOnlineMode ? 
                     (this.gameState.validMoves || []) : 
                     this.getValidMoves(this.currentPlayer);
+                
+                const isMyTurnOnline = this.isOnlineMode && this.isMyTurn;
+                const isMyTurnOffline = !this.isOnlineMode;
 
                 for (let row = 0; row < 8; row++) {
                     for (let col = 0; col < 8; col++) {
@@ -933,32 +1027,25 @@
                         cell.dataset.row = row;
                         cell.dataset.col = col;
 
-                        // Check valid moves
                         const isValidMove = validMoves.some(move => move.row === row && move.col === col);
-                        if (isValidMove && !this.gameOver && 
-                            (!this.isOnlineMode || this.isMyTurn)) {
+                        if (isValidMove && (isMyTurnOnline || isMyTurnOffline)) {
                             cell.classList.add('valid-move');
                         }
 
-                        // Show pieces
                         if (board[row][col] !== 0) {
                             const piece = document.createElement('div');
                             piece.className = 'piece';
                             
                             if (this.isOnlineMode && this.gameState) {
-                                const player = this.gameState.players.find(
-                                    p => p.playerNumber === board[row][col]
-                                );
+                                const player = this.gameState.players.find(p => p.playerNumber === board[row][col]);
                                 piece.textContent = player ? player.emoji : '❓';
                             } else {
-                                piece.textContent = board[row][col] === 1 ? 
-                                    this.player1Emoji : this.player2Emoji;
+                                piece.textContent = board[row][col] === 1 ? this.player1Emoji : this.player2Emoji;
                             }
                             
                             cell.appendChild(piece);
                         }
 
-                        // Add click handler
                         cell.addEventListener('click', () => this.handleCellClick(row, col));
                         boardElement.appendChild(cell);
                     }
@@ -979,16 +1066,15 @@
                 
                 // Animate flipped pieces
                 data.flippedPieces.forEach(piece => {
-                    const cell = document.querySelector(`[data-row="${piece.x}"][data-col="${piece.y}"] .piece`);
-                    if (cell) {
-                        cell.classList.add('flipping');
-                        setTimeout(() => cell.classList.remove('flipping'), 600);
+                    const cellPiece = document.querySelector(`[data-row="${piece.x}"][data-col="${piece.y}"] .piece`);
+                    if (cellPiece) {
+                        cellPiece.classList.add('flipping');
+                        setTimeout(() => cellPiece.classList.remove('flipping'), 600);
                     }
                 });
 
                 setTimeout(() => {
                     this.updateGameDisplay();
-                    this.renderBoard();
                 }, 100);
             }
 
@@ -999,25 +1085,18 @@
 
                 if (this.isOnlineMode && this.gameState) {
                     const { scores, winner, players } = this.gameState;
-                    
                     let winnerMessage;
                     if (winner === 0) {
                         winnerMessage = '🤝 Hòa!';
                     } else {
                         const winnerPlayer = players.find(p => p.playerNumber === winner);
                         const isMe = winnerPlayer && winnerPlayer.id === this.myPlayerId;
-                        winnerMessage = isMe ? 
-                            `🎉 Bạn thắng! ${winnerPlayer.emoji}` : 
-                            `🎉 ${winnerPlayer.name} thắng! ${winnerPlayer.emoji}`;
+                        winnerMessage = isMe ? `🎉 Bạn thắng! ${winnerPlayer.emoji}` : `🎉 ${winnerPlayer.name} thắng! ${winnerPlayer.emoji}`;
                     }
-
                     winnerText.textContent = winnerMessage;
-                    finalScoreText.textContent = 
-                        `Tỷ số cuối: ${scores.player1Score} - ${scores.player2Score}`;
+                    finalScoreText.textContent = `Tỷ số cuối: ${scores.player1Score} - ${scores.player2Score}`;
                 } else {
-                    // Offline mode
                     const { player1Score, player2Score } = this.getOfflineScores();
-                    
                     let winnerMessage;
                     if (player1Score > player2Score) {
                         winnerMessage = `🎉 Người chơi 1 thắng! ${this.player1Emoji}`;
@@ -1026,7 +1105,6 @@
                     } else {
                         winnerMessage = `🤝 Hòa!`;
                     }
-
                     winnerText.textContent = winnerMessage;
                     finalScoreText.textContent = `Tỷ số cuối: ${player1Score} - ${player2Score}`;
                 }
@@ -1038,25 +1116,53 @@
                 document.getElementById('game-over').style.display = 'none';
             }
 
-            // Offline game methods
+            // ================================
+            // Offline Game Methods
+            // ================================
+
             initializeOfflineBoard() {
                 this.board = Array(8).fill().map(() => Array(8).fill(0));
-                this.board[3][3] = 2;
-                this.board[3][4] = 1;
-                this.board[4][3] = 1;
-                this.board[4][4] = 2;
+                this.board[3][3] = 2; // player2
+                this.board[3][4] = 1; // player1
+                this.board[4][3] = 1; // player1
+                this.board[4][4] = 2; // player2
                 this.currentPlayer = 1;
                 this.gameOver = false;
             }
 
+            updateOfflineDisplay() {
+                this.renderBoard();
+                
+                const scores = this.getOfflineScores();
+                document.getElementById('player1-score').textContent = scores.player1Score;
+                document.getElementById('player2-score').textContent = scores.player2Score;
+                
+                const turnIndicator = document.getElementById('turn-indicator');
+                if (this.gameOver) {
+                    turnIndicator.textContent = '🏁 Game Over!';
+                } else {
+                    turnIndicator.textContent = `Lượt của: Người chơi ${this.currentPlayer}`;
+                }
+
+                document.getElementById('player1-card').classList.toggle('active', this.currentPlayer === 1 && !this.gameOver);
+                document.getElementById('player2-card').classList.toggle('active', this.currentPlayer === 2 && !this.gameOver);
+            }
+             
+            getOfflineScores() {
+                let player1Score = 0;
+                let player2Score = 0;
+                for (let r = 0; r < 8; r++) {
+                    for (let c = 0; c < 8; c++) {
+                        if (this.board[r][c] === 1) player1Score++;
+                        if (this.board[r][c] === 2) player2Score++;
+                    }
+                }
+                return { player1Score, player2Score };
+            }
+
             getValidMoves(player) {
                 const validMoves = [];
-                const directions = [
-                    [-1, -1], [-1, 0], [-1, 1],
-                    [0, -1],           [0, 1],
-                    [1, -1],  [1, 0],  [1, 1]
-                ];
-
+                const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
                 for (let row = 0; row < 8; row++) {
                     for (let col = 0; col < 8; col++) {
                         if (this.board[row][col] === 0) {
@@ -1069,7 +1175,6 @@
                         }
                     }
                 }
-
                 return validMoves;
             }
 
@@ -1077,99 +1182,125 @@
                 let x = row + dx;
                 let y = col + dy;
                 let hasOpponent = false;
+                const opponent = player === 1 ? 2 : 1;
 
                 while (x >= 0 && x < 8 && y >= 0 && y < 8) {
-                    if (this.board[x][y] === 0) {
-                        return false;
-                    }
-                    if (this.board[x][y] === player) {
-                        return hasOpponent;
-                    }
-                    hasOpponent = true;
+                    if (this.board[x][y] === 0) return false;
+                    if (this.board[x][y] === player) return hasOpponent;
+                    if (this.board[x][y] === opponent) hasOpponent = true;
                     x += dx;
                     y += dy;
                 }
-
                 return false;
             }
 
             makeOfflineMove(row, col) {
-                if (this.gameOver || this.board[row][col] !== 0) {
-                    return;
-                }
+                if (this.gameOver || this.board[row][col] !== 0) return;
 
                 const validMoves = this.getValidMoves(this.currentPlayer);
-                const isValid = validMoves.some(move => move.row === row && move.col === col);
+                if (!validMoves.some(move => move.row === row && move.col === col)) return;
 
-                if (!isValid) {
-                    return;
-                }
-
-                // Make move
                 this.board[row][col] = this.currentPlayer;
                 this.flipOfflinePieces(row, col, this.currentPlayer);
 
-                // Switch player
                 this.switchOfflinePlayer();
-
-                // Update display
                 this.updateOfflineDisplay();
-
-                // Check game over
                 this.checkOfflineGameOver();
             }
 
             flipOfflinePieces(row, col, player) {
-                const directions = [
-                    [-1, -1], [-1, 0], [-1, 1],
-                    [0, -1],           [0, 1],
-                    [1, -1],  [1, 0],  [1, 1]
-                ];
+                const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+                const opponent = player === 1 ? 2 : 1;
 
-                const toFlip = [];
-
-                for (let [dx, dy] of directions) {
-                    const piecesToFlip = [];
+                directions.forEach(([dx, dy]) => {
+                    const toFlip = [];
                     let x = row + dx;
                     let y = col + dy;
 
-                    while (x >= 0 && x < 8 && y >= 0 && y < 8) {
-                        if (this.board[x][y] === 0) {
-                            break;
-                        }
-                        if (this.board[x][y] === player) {
-                            toFlip.push(...piecesToFlip);
-                            break;
-                        }
-                        piecesToFlip.push({ x, y });
+                    while (x >= 0 && x < 8 && y >= 0 && y < 8 && this.board[x][y] === opponent) {
+                        toFlip.push({x, y});
                         x += dx;
                         y += dy;
                     }
-                }
 
-                // Flip pieces with animation
-                toFlip.forEach(({ x, y }) => {
-                    this.board[x][y] = player;
-                    const cell = document.querySelector(`[data-row="${x}"][data-col="${y}"] .piece`);
-                    if (cell) {
-                        cell.classList.add('flipping');
-                        setTimeout(() => {
-                            cell.classList.remove('flipping');
-                        }, 600);
+                    if (x >= 0 && x < 8 && y >= 0 && y < 8 && this.board[x][y] === player) {
+                        toFlip.forEach(p => {
+                            this.board[p.x][p.y] = player;
+                            const cellPiece = document.querySelector(`[data-row="${p.x}"][data-col="${p.y}"] .piece`);
+                            if (cellPiece) {
+                                cellPiece.classList.add('flipping');
+                                setTimeout(() => cellPiece.classList.remove('flipping'), 600);
+                            }
+                        });
                     }
                 });
-
-                this.renderBoard();
             }
 
             switchOfflinePlayer() {
                 const nextPlayer = this.currentPlayer === 1 ? 2 : 1;
-                const validMoves = this.getValidMoves(nextPlayer);
-
-                if (validMoves.length > 0) {
+                if (this.getValidMoves(nextPlayer).length > 0) {
                     this.currentPlayer = nextPlayer;
+                } else if (this.getValidMoves(this.currentPlayer).length > 0) {
+                    this.showNotification(`Người chơi ${nextPlayer} không có nước đi, bỏ lượt.`);
                 } else {
-                    const currentValidMoves = this.getValidMoves(this.currentPlayer);
-                    if (currentValidMoves.length === 0) {
-                        this.endOfflineGame();
-                        return;
+                    this.endOfflineGame();
+                }
+            }
+
+            checkOfflineGameOver() {
+                const scores = this.getOfflineScores();
+                if (scores.player1Score + scores.player2Score === 64 || (this.getValidMoves(1).length === 0 && this.getValidMoves(2).length === 0)) {
+                    this.endOfflineGame();
+                }
+            }
+            
+            endOfflineGame() {
+                this.gameOver = true;
+                this.showGameOver();
+            }
+        }
+
+        // ================================
+        // App Initialization and Global Functions
+        // ================================
+        const game = new OnlineOthelloGame();
+
+        // Global functions to bridge HTML onclick events with the game class methods
+        function createRoom() { game.createRoom(); }
+        function showJoinRoom() { game.showJoinRoom(); }
+        function playOffline() { game.playOffline(); }
+        function joinRoom() { game.joinRoom(); }
+        function backToMenu() { game.backToMenu(); }
+        function copyRoomLink() { game.copyRoomLink(); }
+        function leaveRoom() { game.leaveRoom(); }
+        function resetGame() { game.resetGame(); }
+        function showRules() { document.getElementById('rules-modal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('rules-modal').style.display = 'none'; }
+        function leaveGame() { game.leaveGame(); }
+        
+        // Handle joining room via URL parameter
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('room');
+            if (roomId) {
+                const playerNameInput = document.getElementById('player-name');
+                const roomIdInput = document.getElementById('room-id-input');
+                
+                // Pre-fill fields and show join screen
+                roomIdInput.value = roomId;
+                game.showScreen('join-room-screen');
+                
+                // Prompt for name before auto-joining
+                const interval = setInterval(() => {
+                    if (playerNameInput.value.trim()){
+                         game.playerName = playerNameInput.value.trim();
+                         game.joinRoom();
+                         clearInterval(interval);
+                    }
+                }, 500);
+            }
+        };
+
+    </script>
+</body>
+</html>
