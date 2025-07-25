@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cờ Lật Online - Multiplayer Othello</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* Menu screens */
+        .screen {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        .menu-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .input-group {
+            margin: 20px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 5px;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(45deg, #feca57, #ff9ff3);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Room info */
+        .room-info {
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid rgba(0, 255, 136, 0.5);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .room-id {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 10px;
+        }
+
+        .share-link {
+            font-size: 0.9rem;
+            word-break: break-all;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        /* Game interface */
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            max-width: 100%;
+        }
+
+        .players-section {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .player-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            min-width: 200px;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .player-card.active {
+            border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            transform: scale(1.05);
+        }
+
+        .player-card.offline {
+            opacity: 0.6;
+            border-color: #ff6b6b;
+        }
+
+        .player-name {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .emoji-selector {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .emoji-option {
+            font-size: 1.5rem;
+            padding: 5px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .emoji-option:hover {
+            transform: scale(1.2);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .emoji-option.selected {
+            border-color: #FFD700;
+            background: rgba(255, 215, 0, 0.3);
+        }
+
+        .score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #FFD700;
+        }
+
+        .board-container {
+            position: relative;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 2px;
+            background: #2d3748;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            background: #4a5568;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell:hover {
+            background: #718096;
+            transform: scale(1.05);
+        }
+
+        .cell.valid-move {
+            border: 2px solid #00ff88;
+            animation: sparkle 1s infinite;
+            background: rgba(0, 255, 136, 0.2);
+        }
+
+        .cell.valid-move:hover {
+            background: rgba(0, 255, 136, 0.4);
+        }
+
+        @keyframes sparkle {
+            0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 136, 0.5); }
+            50% { box-shadow: 0 0 15px rgba(0, 255, 136, 0.8); }
+        }
+
+        .piece {
+            font-size: 1.8rem;
+            animation: placepiece 0.3s ease-out;
+            transition: transform 0.3s ease;
+        }
+
+        .piece.flipping {
+            animation: flip 0.6s ease-in-out;
+        }
+
+        @keyframes placepiece {
+            0% { transform: scale(0) rotate(180deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        @keyframes flip {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(90deg); }
+            100% { transform: rotateY(0deg); }
+        }
+
+        .turn-indicator {
+            text-align: center;
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.connected {
+            background: rgba(0, 255, 136, 0.8);
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(255, 107, 107, 0.8);
+            color: white;
+        }
+
+        .connection-status.connecting {
+            background: rgba(254, 202, 87, 0.8);
+            color: white;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .notification.show {
+            display: block;
+            animation: bounceIn 0.5s ease-out;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 500px;
+            margin: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            color: #FFD700;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+
+        .modal p {
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .game-over {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-over-content {
+            text-align: center;
+            color: white;
+            animation: bounceIn 0.8s ease-out;
+        }
+
+        .winner-announcement {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .final-score {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem;
+            }
+            
+            .players-section {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .player-card {
+                min-width: 280px;
+            }
+            
+            .cell {
+                width: 35px;
+                height: 35px;
+            }
+            
+            .piece {
+                font-size: 1.5rem;
+            }
+            
+            .btn {
+                width: 200px;
+                margin: 5px 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .cell {
+                width: 30px;
+                height: 30px;
+            }
+            
+            .piece {
+                font-size: 1.2rem;
+            }
+            
+            .board {
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 class="title">🌐 Cờ Lật Online</h1>
+        <p class="subtitle">Multiplayer Othello Game</p>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status" id="connection-status">
+        🔄 Đang kết nối...
+    </div>
+
+    <!-- Main Menu Screen -->
+    <div class="screen active" id="main-menu">
+        <div class="menu-card">
+            <h2>📱 Chào mừng đến với Cờ Lật Online!</h2>
+            <p>Chơi cờ lật với bạn bè theo thời gian thực</p>
+            
+            <div class="input-group">
+                <label for="player-name">👤 Tên của bạn:</label>
+                <input type="text" id="player-name" placeholder="Nhập tên của bạn..." maxlength="20">
+            </div>
+            
+            <div style="margin: 30px 0;">
+                <button class="btn btn-primary" onclick="createRoom()">
+                    🏠 Tạo Phòng Mới
+                </button>
+                <button class="btn btn-secondary" onclick="showJoinRoom()">
+                    🚪 Vào Phòng
+                </button>
+            </div>
+            
+            <button class="btn btn-info" onclick="playOffline()">
+                🎮 Chơi Offline
+            </button>
+        </div>
+    </div>
+
+    <!-- Join Room Screen -->
+    <div class="screen" id="join-room-screen">
+        <div class="menu-card">
+            <h2>🚪 Vào Phòng</h2>
+            
+            <div class="input-group">
+                <label for="room-id-input">🏠 Mã phòng (6 số):</label>
+                <input type="text" id="room-id-input" placeholder="123456" maxlength="6" pattern="[0-9]{6}">
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="btn btn-primary" onclick="joinRoom()">
+                    ✅ Vào Phòng
+                </button>
+                <button class="btn btn-secondary" onclick="backToMenu()">
+                    ⬅️ Quay Lại
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting Room Screen -->
+    <div class="screen" id="waiting-room">
+        <div class="menu-card">
+            <h2>⏳ Đang chờ đối thủ...</h2>
+            
+            <div class="room-info">
+                <div class="room-id" id="display-room-id">------</div>
+                <p>Chia sẻ mã phòng này với bạn bè</p>
+                <div class="share-link" id="share-link">
+                    Đang tạo link...
+                </div>
+                <button class="btn btn-info" onclick="copyRoomLink()" id="copy-btn">
+                    📋 Copy Link
+                </button>
+            </div>
+            
+            <div id="waiting-players">
+                <p>🎯 Người chơi trong phòng:</p>
+                <div id="player-list"></div>
+            </div>
+            
+            <button class="btn btn-secondary" onclick="leaveRoom()">
+                🚪 Rời Phòng
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div class="screen" id="game-screen">
+        <div class="game-container">
+            <div class="players-section">
+                <div class="player-card" id="player1-card">
+                    <div class="player-name" id="player1-name">Người chơi 1</div>
+                    <div class="emoji-selector" data-player="1">
+                        <span class="emoji-option selected" data-emoji="⚫">⚫</span>
+                        <span class="emoji-option" data-emoji="🔴">🔴</span>
+                        <span class="emoji-option" data-emoji="🟣">🟣</span>
+                        <span class="emoji-option" data-emoji="🌟">🌟</span>
+                        <span class="emoji-option" data-emoji="💎">💎</span>
+                    </div>
+                    <div class="score" id="player1-score">2</div>
+                </div>
+
+                <div class="player-card" id="player2-card">
+                    <div class="player-name" id="player2-name">Người chơi 2</div>
+                    <div class="emoji-selector" data-player="2">
+                        <span class="emoji-option selected" data-emoji="⚪">⚪</span>
+                        <span class="emoji-option" data-emoji="🟡">🟡</span>
+                        <span class="emoji-option" data-emoji="🟢">🟢</span>
+                        <span class="emoji-option" data-emoji="⭐">⭐</span>
+                        <span class="emoji-option" data-emoji="💖">💖</span>
+                    </div>
+                    <div class="score" id="player2-score">2</div>
+                </div>
+            </div>
+
+            <div class="turn-indicator" id="turn-indicator">
+                🎮 Đang chờ bắt đầu...
+            </div>
+
+            <div class="board-container">
+                <div class="board" id="board"></div>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="resetGame()" id="reset-btn">
+                    🔄 Ván Mới
+                </button>
+                <button class="btn btn-info" onclick="showRules()">
+                    📖 Luật Chơi
+                </button>
+                <button class="btn btn-secondary" onclick="leaveGame()">
+                    🚪 Rời Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal luật chơi -->
+    <div class="modal" id="rules-modal">
+        <div class="modal-content">
+            <h2>📖 Luật Chơi Cờ Lật Online</h2>
+            <p><strong>🎯 Mục tiêu:</strong> Có nhiều quân của mình nhất trên bàn cờ khi hết ô trống.</p>
+            <p><strong>🎮 Cách chơi Online:</strong></p>
+            <p>• Tạo phòng hoặc vào phòng bằng mã 6 số</p>
+            <p>• Click vào ô trống có viền xanh để đặt quân</p>
+            <p>• Quân mới phải "kẹp" được ít nhất 1 quân đối thủ</p>
+            <p>• Tất cả quân bị "kẹp" sẽ chuyển thành quân của bạn</p>
+            <p>• Nếu không có nước đi hợp lệ, bạn sẽ bị bỏ lượt</p>
+            <p>• Game kết thúc khi bàn cờ đầy hoặc cả 2 người không đi được</p>
+            <p><strong>🌐 Tính năng Online:</strong></p>
+            <p>• Đồng bộ theo thời gian thực</p>
+            <p>• Tự động kết nối lại khi mất mạng</p>
+            <p>• Chia sẻ link mời bạn bè</p>
+            <button class="btn btn-primary" onclick="closeModal()">Đóng</button>
+        </div>
+    </div>
+
+    <!-- Màn hình kết thúc -->
+    <div class="game-over" id="game-over">
+        <div class="game-over-content">
+            <div class="winner-announcement" id="winner-text"></div>
+            <div class="final-score" id="final-score-text"></div>
+            <button class="btn btn-primary" onclick="resetGame()">🎮 Chơi Lại</button>
+            <button class="btn btn-secondary" onclick="leaveGame()">🚪 Về Menu</button>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification">
+        <div id="notification-text"></div>
+    </div>
+
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <script>
+        class OnlineOthelloGame {
+            constructor() {
+                this.socket = null;
+                this.roomId = null;
+                this.playerName = '';
+                this.myPlayerId = null;
+                this.isMyTurn = false;
+                this.gameState = null;
+                this.isOnlineMode = false;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                
+                // Offline game state
+                this.board = Array(8).fill().map(() => Array(8).fill(0));
+                this.currentPlayer = 1;
+                this.player1Emoji = '⚫';
+                this.player2Emoji = '⚪';
+                this.gameOver = false;
+                
+                this.initializeConnection();
+                this.bindUIEvents();
+            }
+
+            initializeConnection() {
+                this.socket = io();
+                
+                this.socket.on('connect', () => {
+                    console.log('Connected to server');
+                    this.updateConnectionStatus('connected');
+                    this.reconnectAttempts = 0;
+                    this.myPlayerId = this.socket.id;
+                });
+
+                this.socket.on('disconnect', () => {
+                    console.log('Disconnected from server');
+                    this.updateConnectionStatus('disconnected');
+                    this.attemptReconnect();
+                });
+
+                this.socket.on('connect_error', () => {
+                    this.updateConnectionStatus('disconnected');
+                    this.attemptReconnect();
+                });
+
+                // Room events
+                this.socket.on('roomCreated', (data) => {
+                    this.roomId = data.roomId;
+                    this.gameState = data.gameState;
+                    this.showWaitingRoom();
+                });
+
+                this.socket.on('playerJoined', (data) => {
+                    this.gameState = data.gameState;
+                    if (this.gameState.gameStarted) {
+                        this.showGameScreen();
+                    } else {
+                        this.updateWaitingRoom();
+                    }
+                    this.showNotification('🎉 Có người chơi mới vào phòng!');
+                });
+
+                this.socket.on('moveMade', (data) => {
+                    this.handleMoveMade(data);
+                });
+
+                this.socket.on('emojiUpdated', (data) => {
+                    this.gameState = data.gameState;
+                    this.updateGameDisplay();
+                });
+
+                this.socket.on('gameReset', (data) => {
+                    this.gameState = data.gameState;
+                    this.hideGameOver();
+                    this.updateGameDisplay();
+                    this.showNotification('🔄 Game đã được reset!');
+                });
+
+                this.socket.on('playerDisconnected', (data) => {
+                    this.gameState = data.gameState;
+                    this.updateGameDisplay();
+                    this.showNotification('😞 Một người chơi đã rời khỏi game');
+                });
+
+                this.socket.on('playerReconnected', (data) => {
+                    this.gameState = data.gameState;
+                    this.updateGameDisplay();
+                    this.showNotification('🎉 Người chơi đã kết nối lại!');
+                });
+
+                this.socket.on('error', (data) => {
+                    this.showNotification(`❌ Lỗi: ${data.message}`);
+                });
+            }
+
+            attemptReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    this.updateConnectionStatus('connecting');
+                    
+                    setTimeout(() => {
+                        if (this.socket.disconnected) {
+                            this.socket.connect();
+                        }
+                    }, 2000 * this.reconnectAttempts);
+                }
+            }
+
+            updateConnectionStatus(status) {
+                const statusElement = document.getElementById('connection-status');
+                statusElement.className = `connection-status ${status}`;
+                
+                switch (status) {
+                    case 'connected':
+                        statusElement.textContent = '🟢 Đã kết nối';
+                        break;
+                    case 'disconnected':
+                        statusElement.textContent = '🔴 Mất kết nối';
+                        break;
+                    case 'connecting':
+                        statusElement.textContent = '🔄 Đang kết nối...';
+                        break;
+                }
+            }
+
+            bindUIEvents() {
+                // Emoji selection
+                document.querySelectorAll('.emoji-option').forEach(option => {
+                    option.addEventListener('click', (e) => {
+                        const player = e.target.closest('.emoji-selector').dataset.player;
+                        const emoji = e.target.dataset.emoji;
+                        
+                        // Update UI
+                        e.target.closest('.emoji-selector').querySelectorAll('.emoji-option').forEach(opt => {
+                            opt.classList.remove('selected');
+                        });
+                        e.target.classList.add('selected');
+                        
+                        if (this.isOnlineMode) {
+                            // Send to server
+                            this.socket.emit('updateEmoji', { emoji });
+                        } else {
+                            // Offline mode
+                            if (player === '1') {
+                                this.player1Emoji = emoji;
+                            } else {
+                                this.player2Emoji = emoji;
+                            }
+                            this.renderBoard();
+                        }
+                    });
+                });
+
+                // Enter key handlers
+                document.getElementById('player-name').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') createRoom();
+                });
+
+                document.getElementById('room-id-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') joinRoom();
+                });
+            }
+
+            showScreen(screenId) {
+                document.querySelectorAll('.screen').forEach(screen => {
+                    screen.classList.remove('active');
+                });
+                document.getElementById(screenId).classList.add('active');
+            }
+
+            showNotification(message) {
+                const notification = document.getElementById('notification');
+                const text = document.getElementById('notification-text');
+                text.textContent = message;
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            showWaitingRoom() {
+                this.showScreen('waiting-room');
+                document.getElementById('display-room-id').textContent = this.roomId;
+                document.getElementById('share-link').textContent = 
+                    `${window.location.origin}?room=${this.roomId}`;
+                this.updateWaitingRoom();
+            }
+
+            updateWaitingRoom() {
+                if (!this.gameState) return;
+                
+                const playerList = document.getElementById('player-list');
+                playerList.innerHTML = '';
+                
+                this.gameState.players.forEach((player, index) => {
+                    const playerDiv = document.createElement('div');
+                    playerDiv.style.margin = '10px 0';
+                    playerDiv.style.padding = '10px';
+                    playerDiv.style.background = 'rgba(255,255,255,0.1)';
+                    playerDiv.style.borderRadius = '10px';
+                    playerDiv.innerHTML = `
+                        <span style="font-size: 1.2rem;">${player.emoji} ${player.name}</span>
+                        ${!player.connected ? '<span style="color: #ff6b6b;"> (Offline)</span>' : ''}
+                        ${player.id === this.myPlayerId ? '<span style="color: #00ff88;"> (Bạn)</span>' : ''}
+                    `;
+                    playerList.appendChild(playerDiv);
+                });
+            }
+
+            showGameScreen() {
+                this.showScreen('game-screen');
+                this.updateGameDisplay();
+                this.renderBoard();
+            }
+
+            updateGameDisplay() {
+                if (!this.gameState) return;
+
+                // Update player info
+                this.gameState.players.forEach((player, index) => {
+                    const cardId = `player${index + 1}-card`;
+                    const nameId = `player${index + 1}-name`;
+                    const scoreId = `player${index + 1}-score`;
+                    
+                    document.getElementById(nameId).textContent = player.name;
+                    document.getElementById(scoreId).textContent = 
+                        this.gameState.scores[`player${index + 1}Score`];
+                    
+                    const card = document.getElementById(cardId);
+                    card.classList.toggle('active', 
+                        this.gameState.currentPlayer === player.playerNumber);
+                    card.classList.toggle('offline', !player.connected);
+                });
+
+                // Update turn indicator
+                const currentPlayerData = this.gameState.players.find(
+                    p => p.playerNumber === this.gameState.currentPlayer
+                );
+                
+                if (this.gameState.gameOver) {
+                    this.showGameOver();
+                } else if (currentPlayerData) {
+                    const isMyTurn = currentPlayerData.id === this.myPlayerId;
+                    this.isMyTurn = isMyTurn;
+                    
+                    const turnText = isMyTurn ? 
+                        '🎯 Lượt của bạn!' : 
+                        `⏳ Lượt của ${currentPlayerData.name}`;
+                    
+                    document.getElementById('turn-indicator').textContent = turnText;
+                }
+
+                // Update emoji selectors
+                this.gameState.players.forEach((player, index) => {
+                    const selector = document.querySelector(`[data-player="${index + 1}"]`);
+                    if (selector) {
+                        selector.querySelectorAll('.emoji-option').forEach(opt => opt.classList.remove('selected'));
+                        const selectedOpt = selector.querySelector(`[data-emoji="${player.emoji}"]`);
+                        if (selectedOpt) selectedOpt.classList.add('selected');
+                    }
+                });
+            }
+
+            renderBoard() {
+                const boardElement = document.getElementById('board');
+                boardElement.innerHTML = '';
+
+                const board = this.isOnlineMode ? this.gameState.board : this.board;
+                const validMoves = this.isOnlineMode ? 
+                    (this.gameState.validMoves || []) : 
+                    this.getValidMoves(this.currentPlayer);
+
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+
+                        // Check valid moves
+                        const isValidMove = validMoves.some(move => move.row === row && move.col === col);
+                        if (isValidMove && !this.gameOver && 
+                            (!this.isOnlineMode || this.isMyTurn)) {
+                            cell.classList.add('valid-move');
+                        }
+
+                        // Show pieces
+                        if (board[row][col] !== 0) {
+                            const piece = document.createElement('div');
+                            piece.className = 'piece';
+                            
+                            if (this.isOnlineMode && this.gameState) {
+                                const player = this.gameState.players.find(
+                                    p => p.playerNumber === board[row][col]
+                                );
+                                piece.textContent = player ? player.emoji : '❓';
+                            } else {
+                                piece.textContent = board[row][col] === 1 ? 
+                                    this.player1Emoji : this.player2Emoji;
+                            }
+                            
+                            cell.appendChild(piece);
+                        }
+
+                        // Add click handler
+                        cell.addEventListener('click', () => this.handleCellClick(row, col));
+                        boardElement.appendChild(cell);
+                    }
+                }
+            }
+
+            handleCellClick(row, col) {
+                if (this.isOnlineMode) {
+                    if (!this.isMyTurn || this.gameState.gameOver) return;
+                    this.socket.emit('makeMove', { row, col });
+                } else {
+                    this.makeOfflineMove(row, col);
+                }
+            }
+
+            handleMoveMade(data) {
+                this.gameState = data.gameState;
+                
+                // Animate flipped pieces
+                data.flippedPieces.forEach(piece => {
+                    const cell = document.querySelector(`[data-row="${piece.x}"][data-col="${piece.y}"] .piece`);
+                    if (cell) {
+                        cell.classList.add('flipping');
+                        setTimeout(() => cell.classList.remove('flipping'), 600);
+                    }
+                });
+
+                setTimeout(() => {
+                    this.updateGameDisplay();
+                    this.renderBoard();
+                }, 100);
+            }
+
+            showGameOver() {
+                const gameOverDiv = document.getElementById('game-over');
+                const winnerText = document.getElementById('winner-text');
+                const finalScoreText = document.getElementById('final-score-text');
+
+                if (this.isOnlineMode && this.gameState) {
+                    const { scores, winner, players } = this.gameState;
+                    
+                    let winnerMessage;
+                    if (winner === 0) {
+                        winnerMessage = '🤝 Hòa!';
+                    } else {
+                        const winnerPlayer = players.find(p => p.playerNumber === winner);
+                        const isMe = winnerPlayer && winnerPlayer.id === this.myPlayerId;
+                        winnerMessage = isMe ? 
+                            `🎉 Bạn thắng! ${winnerPlayer.emoji}` : 
+                            `🎉 ${winnerPlayer.name} thắng! ${winnerPlayer.emoji}`;
+                    }
+
+                    winnerText.textContent = winnerMessage;
+                    finalScoreText.textContent = 
+                        `Tỷ số cuối: ${scores.player1Score} - ${scores.player2Score}`;
+                } else {
+                    // Offline mode
+                    const { player1Score, player2Score } = this.getOfflineScores();
+                    
+                    let winnerMessage;
+                    if (player1Score > player2Score) {
+                        winnerMessage = `🎉 Người chơi 1 thắng! ${this.player1Emoji}`;
+                    } else if (player2Score > player1Score) {
+                        winnerMessage = `🎉 Người chơi 2 thắng! ${this.player2Emoji}`;
+                    } else {
+                        winnerMessage = `🤝 Hòa!`;
+                    }
+
+                    winnerText.textContent = winnerMessage;
+                    finalScoreText.textContent = `Tỷ số cuối: ${player1Score} - ${player2Score}`;
+                }
+
+                gameOverDiv.style.display = 'flex';
+            }
+
+            hideGameOver() {
+                document.getElementById('game-over').style.display = 'none';
+            }
+
+            // Offline game methods
+            initializeOfflineBoard() {
+                this.board = Array(8).fill().map(() => Array(8).fill(0));
+                this.board[3][3] = 2;
+                this.board[3][4] = 1;
+                this.board[4][3] = 1;
+                this.board[4][4] = 2;
+                this.currentPlayer = 1;
+                this.gameOver = false;
+            }
+
+            getValidMoves(player) {
+                const validMoves = [];
+                const directions = [
+                    [-1, -1], [-1, 0], [-1, 1],
+                    [0, -1],           [0, 1],
+                    [1, -1],  [1, 0],  [1, 1]
+                ];
+
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        if (this.board[row][col] === 0) {
+                            for (let [dx, dy] of directions) {
+                                if (this.isValidDirection(row, col, dx, dy, player)) {
+                                    validMoves.push({ row, col });
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return validMoves;
+            }
+
+            isValidDirection(row, col, dx, dy, player) {
+                let x = row + dx;
+                let y = col + dy;
+                let hasOpponent = false;
+
+                while (x >= 0 && x < 8 && y >= 0 && y < 8) {
+                    if (this.board[x][y] === 0) {
+                        return false;
+                    }
+                    if (this.board[x][y] === player) {
+                        return hasOpponent;
+                    }
+                    hasOpponent = true;
+                    x += dx;
+                    y += dy;
+                }
+
+                return false;
+            }
+
+            makeOfflineMove(row, col) {
+                if (this.gameOver || this.board[row][col] !== 0) {
+                    return;
+                }
+
+                const validMoves = this.getValidMoves(this.currentPlayer);
+                const isValid = validMoves.some(move => move.row === row && move.col === col);
+
+                if (!isValid) {
+                    return;
+                }
+
+                // Make move
+                this.board[row][col] = this.currentPlayer;
+                this.flipOfflinePieces(row, col, this.currentPlayer);
+
+                // Switch player
+                this.switchOfflinePlayer();
+
+                // Update display
+                this.updateOfflineDisplay();
+
+                // Check game over
+                this.checkOfflineGameOver();
+            }
+
+            flipOfflinePieces(row, col, player) {
+                const directions = [
+                    [-1, -1], [-1, 0], [-1, 1],
+                    [0, -1],           [0, 1],
+                    [1, -1],  [1, 0],  [1, 1]
+                ];
+
+                const toFlip = [];
+
+                for (let [dx, dy] of directions) {
+                    const piecesToFlip = [];
+                    let x = row + dx;
+                    let y = col + dy;
+
+                    while (x >= 0 && x < 8 && y >= 0 && y < 8) {
+                        if (this.board[x][y] === 0) {
+                            break;
+                        }
+                        if (this.board[x][y] === player) {
+                            toFlip.push(...piecesToFlip);
+                            break;
+                        }
+                        piecesToFlip.push({ x, y });
+                        x += dx;
+                        y += dy;
+                    }
+                }
+
+                // Flip pieces with animation
+                toFlip.forEach(({ x, y }) => {
+                    this.board[x][y] = player;
+                    const cell = document.querySelector(`[data-row="${x}"][data-col="${y}"] .piece`);
+                    if (cell) {
+                        cell.classList.add('flipping');
+                        setTimeout(() => {
+                            cell.classList.remove('flipping');
+                        }, 600);
+                    }
+                });
+
+                this.renderBoard();
+            }
+
+            switchOfflinePlayer() {
+                const nextPlayer = this.currentPlayer === 1 ? 2 : 1;
+                const validMoves = this.getValidMoves(nextPlayer);
+
+                if (validMoves.length > 0) {
+                    this.currentPlayer = nextPlayer;
+                } else {
+                    const currentValidMoves = this.getValidMoves(this.currentPlayer);
+                    if (currentValidMoves.length === 0) {
+                        this.endOfflineGame();
+                        return;
